@@ -61,18 +61,34 @@ class BlockchainClient:
     def send_request(self, request_data):
         """Gửi yêu cầu tới server qua socket"""
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect((self.SERVER_HOST, self.SERVER_PORT))
+        client.settimeout(5)  # Timeout 5 giây
         
-        # Gửi yêu cầu
-        client.send(json.dumps(request_data).encode())
-        
-        # Nhận phản hồi
-        response = client.recv(4096).decode()
-        client.close()
-        
-        return json.loads(response)
+        try:
+            client.connect((self.SERVER_HOST, self.SERVER_PORT))
+            
+            # Gửi yêu cầu
+            client.send(json.dumps(request_data).encode())
+            
+            # Nhận phản hồi
+            response = client.recv(4096).decode()
+            return json.loads(response)
+        except socket.timeout:
+            messagebox.showerror("Lỗi", "Không thể kết nối đến server (timeout)")
+            return {'status': 'error', 'message': 'Connection timeout'}
+        except ConnectionRefusedError:
+            messagebox.showerror("Lỗi", "Server không hoạt động")
+            return {'status': 'error', 'message': 'Server is down'}
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Lỗi kết nối: {str(e)}")
+            return {'status': 'error', 'message': str(e)}
+        finally:
+            client.close()
 
     def add_asset(self):
+        if not all([self.asset_id_entry.get(), self.asset_name_entry.get(), self.owner_entry.get()]):
+            messagebox.showwarning("Cảnh báo", "Vui lòng điền đầy đủ thông tin")
+            return
+        
         request = {
             'type': 'add',
             'asset_id': self.asset_id_entry.get(),
@@ -80,50 +96,56 @@ class BlockchainClient:
             'owner': self.owner_entry.get()
         }
         
-        try:
-            response = self.send_request(request)
-            if response['status'] == 'success':
-                messagebox.showinfo("Thành công", "Tài sản đã được đăng ký thành công!")
-                # Clear form
-                self.asset_id_entry.delete(0, tk.END)
-                self.asset_name_entry.delete(0, tk.END)
-                self.owner_entry.delete(0, tk.END)
-        except Exception as e:
-            messagebox.showerror("Lỗi", f"Không thể đăng ký tài sản: {str(e)}")
+        response = self.send_request(request)
+        if response['status'] == 'success':
+            messagebox.showinfo("Thành công", "Tài sản đã được đăng ký thành công!")
+            # Clear form
+            self.asset_id_entry.delete(0, tk.END)
+            self.asset_name_entry.delete(0, tk.END)
+            self.owner_entry.delete(0, tk.END)
+        else:
+            messagebox.showerror("Lỗi", response['message'])
 
     def verify_asset(self):
+        if not self.verify_id_entry.get():
+            messagebox.showwarning("Cảnh báo", "Vui lòng nhập mã tài sản")
+            return
+        
         asset_id = self.verify_id_entry.get()
         request = {
             'type': 'verify',
             'asset_id': asset_id
         }
         
-        try:
-            # Đo thời gian phản hồi
-            start_time = time.time()
-            response = self.send_request(request)
-            end_time = time.time()
-            
-            response_time = end_time - start_time
-            self.response_time_label.config(
-                text=f"Thời gian phản hồi: {response_time:.2f} giây"
-            )
-            
+        # Đo thời gian phản hồi
+        start_time = time.time()
+        response = self.send_request(request)
+        end_time = time.time()
+        
+        if response['status'] == 'error':
+            self.response_time_label.config(text="")
             self.result_text.delete(1.0, tk.END)
-            if response['verified']:
-                verification_text = f"""
-                Kết quả xác thực:
-                Mã tài sản: {response['asset_id']}
-                Tên tài sản: {response['asset_name']}
-                Chủ sở hữu: {response['owner']}
-                Thời gian đăng ký: {response['timestamp']}
-                """
-            else:
-                verification_text = "Không tìm thấy thông tin tài sản!"
-            
-            self.result_text.insert(1.0, verification_text)
-        except Exception as e:
-            messagebox.showerror("Lỗi", f"Không thể xác thực tài sản: {str(e)}")
+            self.result_text.insert(1.0, f"Lỗi: {response['message']}")
+            return
+        
+        response_time = end_time - start_time
+        self.response_time_label.config(
+            text=f"Thời gian phản hồi: {response_time:.2f} giây"
+        )
+        
+        self.result_text.delete(1.0, tk.END)
+        if response.get('verified'):
+            verification_text = f"""
+            Kết quả xác thực:
+            Mã tài sản: {response['asset_id']}
+            Tên tài sản: {response['asset_name']}
+            Chủ sở hữu: {response['owner']}
+            Thời gian đăng ký: {response['timestamp']}
+            """
+        else:
+            verification_text = "Không tìm thấy thông tin tài sản!"
+        
+        self.result_text.insert(1.0, verification_text)
 
 if __name__ == '__main__':
     root = tk.Tk()

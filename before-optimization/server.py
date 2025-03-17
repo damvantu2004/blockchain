@@ -73,26 +73,36 @@ class BlockchainServer:
 
     def add_asset(self, asset_id, asset_name, owner):
         """Thêm tài sản mới vào blockchain"""
-        # Tạo block mới
-        new_block = self.create_block(asset_id, asset_name, owner)
-        
-        # Thêm vào blockchain trong RAM
-        self.blockchain.append(new_block)
-        
-        # Lưu vào SQLite
-        self.cursor.execute('''
-            INSERT INTO blocks (asset_id, asset_name, owner, timestamp, prev_hash)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (
-            new_block['asset_id'],
-            new_block['asset_name'],
-            new_block['owner'],
-            new_block['timestamp'],
-            new_block['prev_hash']
-        ))
-        self.conn.commit()
-        
-        return {'status': 'success', 'message': 'Asset registered successfully'}
+        try:
+            # Kiểm tra xem asset_id đã tồn tại chưa
+            self.cursor.execute('SELECT asset_id FROM blocks WHERE asset_id = ?', (asset_id,))
+            if self.cursor.fetchone():
+                return {'status': 'error', 'message': 'Asset ID already exists'}
+            
+            # Tạo block mới
+            new_block = self.create_block(asset_id, asset_name, owner)
+            
+            # Thêm vào blockchain trong RAM
+            self.blockchain.append(new_block)
+            
+            # Lưu vào SQLite
+            self.cursor.execute('''
+                INSERT INTO blocks (asset_id, asset_name, owner, timestamp, prev_hash)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                new_block['asset_id'],
+                new_block['asset_name'],
+                new_block['owner'],
+                new_block['timestamp'],
+                new_block['prev_hash']
+            ))
+            self.conn.commit()
+            
+            return {'status': 'success', 'message': 'Asset registered successfully'}
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': 'Asset ID already exists'}
+        except Exception as e:
+            return {'status': 'error', 'message': str(e)}
 
     def verify_asset(self, asset_id):
         """Xác thực tài sản bằng cách duyệt tuần tự"""

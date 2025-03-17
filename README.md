@@ -9,13 +9,16 @@ blockchain-asset-management/
 ├── before-optimization/     # Phiên bản trước cải tiến
 │   ├── server.py           # Máy chủ với tra cứu tuần tự
 │   ├── client.py           # Giao diện người dùng
-│   └── blockchain.db       # Database SQLite
+│   └──       # Database SQLite
 │
 ├── after-optimization/     # Phiên bản sau cải tiến
 │   ├── server.py          # Máy chủ với tra cứu tối ưu
 │   ├── client.py          # Giao diện người dùng
-│   └── blockchain.db      # Database SQLite
-```
+│   └──     # Database SQLite
+|
+|── blockchain.db           # Database SQLite chung
+└── README.md
+
 
 ## Phiên bản trước cải tiến (before-optimization)
 
