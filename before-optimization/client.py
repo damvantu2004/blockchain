@@ -104,7 +104,10 @@ class BlockchainClient:
             self.asset_name_entry.delete(0, tk.END)
             self.owner_entry.delete(0, tk.END)
         else:
-            messagebox.showerror("Lỗi", response['message'])
+            if response['message'] == 'Asset ID already exists':
+                messagebox.showwarning("Cảnh báo", f"Mã tài sản {self.asset_id_entry.get()} đã tồn tại trong hệ thống!")
+            else:
+                messagebox.showerror("Lỗi", response['message'])
 
     def verify_asset(self):
         if not self.verify_id_entry.get():
